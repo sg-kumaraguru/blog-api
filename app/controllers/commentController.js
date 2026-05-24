@@ -5,8 +5,11 @@ import { asyncHandler } from "../utils/asyncUtils.js";
 export const createComment = asyncHandler(async (req, res) => {
   const post = await BlogPost.findById(req.params.postId);
 
-  if (!post || post.status !== "published")
-    return res.status(404).json({ error: "Post not found" });
+  if (!post || post.status !== "published") {
+    return res.status(404).json({
+      error: "Post not found",
+    });
+  }
 
   const comment = await Comment.create({
     content: req.body.content,
@@ -14,7 +17,10 @@ export const createComment = asyncHandler(async (req, res) => {
     post: post._id,
   });
 
-  res.status(201).json(comment);
+  const populatedComment = await Comment.findById(comment._id)
+    .populate("author", "name");
+
+  res.status(201).json(populatedComment);
 });
 
 export const deleteComment = asyncHandler(async (req, res) => {
