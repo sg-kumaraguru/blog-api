@@ -13,3 +13,22 @@ export const updatePostSchema = z.object({
   tags: z.array(z.string()).optional(),
   action: z.enum(["draft", "publish", "archived"]).optional(),
 });
+
+export const getPostsQuerySchema = z.object({
+  page: z.coerce
+    .number()
+    .int()
+    .positive()
+    .optional(),
+
+  limit: z.coerce
+    .number()
+    .int()
+    .positive()
+    .max(100)
+    .optional(),
+
+  sort: z
+    .enum(["asc", "desc"])
+    .optional(),
+});

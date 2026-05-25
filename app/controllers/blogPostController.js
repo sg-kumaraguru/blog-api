@@ -1,6 +1,7 @@
 import { BlogPost } from "../models/blogPostModel.js";
 import { Comment } from "../models/commentModel.js";
 import { asyncHandler } from "../utils/asyncUtils.js";
+import { applySorting, applyPagination } from "../utils/apiFeatureUtils.js";
 
 export const createPost = asyncHandler(async (req, res) => {
   const { title, content, tags, action } = req.body;
@@ -19,24 +20,55 @@ export const createPost = asyncHandler(async (req, res) => {
 });
 
 export const getPosts = asyncHandler(async (req, res) => {
-  const posts = await BlogPost.find({ status: "published" })
-    .populate("author", "name")
-    .sort({ createdAt: -1 });
+  let query = BlogPost.find({ status: "published" }).populate("author", "name");
+
+  // sorting
+  query = applySorting( query, req.query.sort );
+
+  // pagination
+  const {
+    query: paginatedQuery,
+    pagination,
+  } = applyPagination(
+    query,
+    req.query.page,
+    req.query.limit
+  );
+
+  const posts = await paginatedQuery.lean();
 
   const postsWithComments = await Promise.all(
     posts.map(async (post) => {
-      const comments = await Comment.find({ post: post._id })
+      const comments = await Comment.find({
+        post: post._id,
+      })
         .populate("author", "name")
-        .sort({ createdAt: -1 });
+        .sort({
+          createdAt: -1,
+        })
+        .lean();
 
       return {
-        ...post.toObject(),
+        ...post,
         comments,
       };
     })
   );
 
-  res.json(postsWithComments);
+  const total =
+    await BlogPost.countDocuments({
+      status: "published",
+    });
+
+  res.json({
+    total,
+    page: pagination.page,
+    limit: pagination.limit,
+    totalPages: Math.ceil(
+      total / pagination.limit
+    ),
+    data: postsWithComments,
+  });
 });
 
 export const getPost = asyncHandler(async (req, res) => {
